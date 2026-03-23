@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Soft Tennis Positioning</title>
+    <title>ソフトテニス 前衛ポジション</title>
     <style>
         :root {
             --bg-dark: #0f172a;
@@ -67,20 +67,20 @@
 <body>
 
 <div id="ui-layer">
-    <div class="label" style="text-align: center;">DRAG RED DOT TO CHANGE HIT POINT</div>
+    <div class="label" style="text-align: center;">打点をドラッグ</div>
     
     <div class="controls-right">
-        <span class="label" style="margin-bottom:5px;">DEPTH</span>
+        <span class="label" style="margin-bottom:5px;">前衛の位置</span>
         <input type="range" id="depthSlider" class="vertical" min="0" max="1" step="0.01" value="0.7">
     </div>
 
     <div class="bottom-panel">
         <div class="slider-group">
-            <div class="label">LEFT SIDE (SLIDE 1) <span id="leftVal" class="val">1.0x</span></div>
+            <div class="label">打球範囲 (左) <span id="leftVal" class="val">1.0x</span></div>
             <input type="range" id="leftSlider" min="0" max="2" step="0.01" value="1.0">
         </div>
         <div class="slider-group">
-            <div class="label">RIGHT SIDE (SLIDE 2) <span id="rightVal" class="val">1.0x</span></div>
+            <div class="label">打球範囲 (右) <span id="rightVal" class="val">1.0x</span></div>
             <input type="range" id="rightSlider" min="0" max="2" step="0.01" value="1.0">
         </div>
     </div>
