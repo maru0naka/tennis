@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Soft Tennis Pro Sim</title>
+    <title>Soft Tennis Pro Sim V2</title>
     <style>
         :root {
             --bg-dark: #0f172a;
-            --omni-green: #1e3a2f; /* オムニコート風の深い緑 */
+            --omni-green: #1e3a2f;
             --line-white: rgba(255, 255, 255, 0.9);
             --ball-red: #ff4757;
             --player-yellow: #eccc68;
@@ -28,6 +28,7 @@
             position: absolute; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column;
             justify-content: space-between; padding: 40px 20px; box-sizing: border-box;
+            z-index: 10; /* Canvasより上に */
         }
 
         .label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; opacity: 0.7; pointer-events: auto; }
@@ -39,7 +40,6 @@
             touch-action: none;
         }
 
-        /* スライダーのカスタマイズ */
         .controls-right {
             position: absolute; right: 15px; top: 50%;
             transform: translateY(-50%); pointer-events: auto;
@@ -56,6 +56,7 @@
             backdrop-filter: blur(10px); padding: 15px;
             border-radius: 16px; pointer-events: auto;
             border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px; /* iPhoneの下部バー対策 */
         }
 
         input[type=range] { width: 100%; accent-color: var(--player-yellow); }
@@ -64,7 +65,7 @@
 <body>
 
 <div id="ui-layer">
-    <div class="label" style="text-align: center;">OPPONENT COURT</div>
+    <div class="label" style="text-align: center;">OPPONENT COURT (DRAG RED DOT)</div>
     
     <div class="controls-right">
         <span class="label" style="margin-bottom:10px;">POSITION</span>
@@ -73,10 +74,10 @@
 
     <div class="bottom-panel">
         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-            <span class="label">DEFENSIVE RANGE</span>
-            <span id="angleValue" style="color:var(--player-yellow); font-weight:bold;">13°</span>
+            <span class="label">RANGE SPREAD (TO SIDELINES)</span>
+            <span id="spreadValue" style="color:var(--player-yellow); font-weight:bold;">1.0x</span>
         </div>
-        <input type="range" id="angleSlider" min="5" max="40" value="13">
+        <input type="range" id="spreadSlider" min="0.5" max="1.5" step="0.01" value="1.0">
     </div>
 </div>
 
@@ -86,62 +87,87 @@
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     const depthSlider = document.getElementById('depthSlider');
-    const angleSlider = document.getElementById('angleSlider');
+    const spreadSlider = document.getElementById('spreadSlider');
 
-    let ballPos = { x: 0.82, y: 0.12 };
+    // コート設定 (比率)
+    const ratio = 1.6; 
+    let cProps = {}; // コートの描画プロパティ
+
+    // 状態管理
+    let ballPos = { x: 0.85, y: 0.15 }; 
     let isDragging = false;
 
     function resize() {
-        const w = window.innerWidth * 0.85;
+        const w = window.innerWidth * 0.9;
         canvas.width = w;
-        canvas.height = w * 1.5;
+        canvas.height = w * ratio;
+        calculateCourtProps();
         draw();
     }
 
-    function drawCourt(w, h) {
+    // コートの各ラインの座標を計算して保存
+    function calculateCourtProps() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const padX = w * 0.08; // 横の余白
+        const padY = h * 0.08; // 縦の余白
+        const cw = w - (padX * 2); // コート有効幅
+        const ch = h - (padY * 2); // コート有効高
+        const sPad = cw * 0.13; // シングルス用余白
+
+        cProps = {
+            width: w, height: h,
+            left: padX, right: w - padX,
+            top: padY, bottom: h - padY,
+            netY: h / 2,
+            sLeft: padX + sPad, sRight: w - padX - sPad, // シングルス端
+            cMarkX: w / 2,
+            cMarkY: h - padY * 0.5 // センターマーク（少し内側）
+        };
+    }
+
+    function drawCourt() {
         // コートの地肌（グラデーション）
-        const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, h);
+        const grad = ctx.createRadialGradient(cProps.width/2, cProps.height/2, 0, cProps.width/2, cProps.height/2, cProps.height);
         grad.addColorStop(0, '#2d5a3f');
         grad.addColorStop(1, '#1e3a2f');
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, cProps.width, cProps.height);
 
         // 芝生感を出すためのノイズ（簡易版）
-        ctx.globalAlpha = 0.05;
-        for(let i=0; i<500; i++) {
+        ctx.globalAlpha = 0.03;
+        for(let i=0; i<400; i++) {
             ctx.fillStyle = "white";
-            ctx.fillRect(Math.random()*w, Math.random()*h, 1, 1);
+            ctx.fillRect(Math.random()*cProps.width, Math.random()*cProps.height, 1, 1);
         }
         ctx.globalAlpha = 1.0;
 
         // ライン設定
-        ctx.strokeStyle = varProp('--line-white');
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
         ctx.lineWidth = 2.5;
-        const padX = w * 0.1;
-        const padY = h * 0.1;
-        const cw = w * 0.8; // court width
-        const ch = h * 0.8; // court height
 
         // ダブルス外枠
-        ctx.strokeRect(padX, padY, cw, ch);
+        ctx.strokeRect(cProps.left, cProps.top, cProps.right - cProps.left, cProps.bottom - cProps.top);
         
         // シングルスサイドライン
-        const sPad = cw * 0.12;
-        ctx.strokeRect(padX + sPad, padY, cw - (sPad*2), ch);
+        ctx.beginPath();
+        ctx.moveTo(cProps.sLeft, cProps.top); ctx.lineTo(cProps.sLeft, cProps.bottom);
+        ctx.moveTo(cProps.sRight, cProps.top); ctx.lineTo(cProps.sRight, cProps.bottom);
+        ctx.stroke();
 
         // ネット
         ctx.beginPath();
         ctx.lineWidth = 4;
-        ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+        ctx.moveTo(0, cProps.netY); ctx.lineTo(cProps.width, cProps.netY);
         ctx.stroke();
 
         // サービスライン
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(padX + sPad, h*0.28); ctx.lineTo(w - padX - sPad, h*0.28);
-        ctx.moveTo(padX + sPad, h*0.72); ctx.lineTo(w - padX - sPad, h*0.72);
+        ctx.moveTo(cProps.sLeft, cProps.height*0.28); ctx.lineTo(cProps.sRight, cProps.height*0.28);
+        ctx.moveTo(cProps.sLeft, cProps.height*0.72); ctx.lineTo(cProps.sRight, cProps.height*0.72);
         // センターライン
-        ctx.moveTo(w/2, h*0.28); ctx.lineTo(w/2, h*0.72);
+        ctx.moveTo(cProps.width/2, cProps.height*0.28); ctx.lineTo(cProps.width/2, cProps.height*0.72);
         ctx.stroke();
     }
 
@@ -150,41 +176,59 @@
         const h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
-        drawCourt(w, h);
+        drawCourt();
 
         const bX = ballPos.x * w;
         const bY = ballPos.y * h;
-        const centerMarkX = w / 2;
-        const centerMarkY = h * 0.88;
 
-        // 影の描写
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "black";
+        // --- ここから守備範囲の計算 ---
+        const spreadFactor = parseFloat(spreadSlider.value); // スライダーの倍率
 
-        // 打球範囲
-        const angle = angleSlider.value * Math.PI / 180;
+        // 1. 基本となる「コート端」のターゲット座標（自陣のボトムライン上）
+        let targetLeftX = cProps.sLeft;  // シングルス左端
+        let targetRightX = cProps.sRight; // シングルス右端
+
+        // 2. 打点がセンターからどれだけ離れているか（比率：0〜1）
+        const offsetRatio = Math.abs(bX - cProps.cMarkX) / (cProps.sRight - cProps.cMarkX);
+
+        // 3. スライダーの倍率と打点オフセットを組み合わせて、範囲を調整
+        // 打点がワイドに出るほど、範囲の広がりも大きくなるように計算
+        const finalSpread = (targetRightX - cProps.cMarkX) * offsetRatio * spreadFactor;
+
+        // 実際のターゲット座標を計算（センターから左右にfinalSpread分広げる）
+        const actualTargetLeftX = cProps.cMarkX - finalSpread;
+        const actualTargetRightX = cProps.cMarkX + finalSpread;
+
+        // --- 描画 ---
+        // 打球範囲（扇形）
+        ctx.shadowBlur = 0;
         ctx.fillStyle = "rgba(255, 71, 87, 0.25)";
         ctx.beginPath();
         ctx.moveTo(bX, bY);
-        ctx.lineTo(bX - Math.tan(angle)*h, h);
-        ctx.lineTo(bX + Math.tan(angle)*h, h);
+        // 打点から、計算した自陣ボトムライン上の左右ターゲットに向けて線を引く
+        ctx.lineTo(actualTargetLeftX, cProps.bottom);
+        ctx.lineTo(actualTargetRightX, cProps.bottom);
         ctx.fill();
 
-        // セオリーライン
-        ctx.shadowBlur = 0;
+        // セオリーライン（点線：打点⇔自陣センターマーク）
         ctx.setLineDash([8, 8]);
         ctx.strokeStyle = "rgba(255,255,255,0.4)";
         ctx.beginPath();
         ctx.moveTo(bX, bY);
-        ctx.lineTo(centerMarkX, centerMarkY);
+        ctx.lineTo(cProps.cMarkX, cProps.cMarkY);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // 前衛の計算
+        // 前衛の計算（セオリーライン上）
         const depth = parseFloat(depthSlider.value);
-        const vY = (h/2) + (h * 0.3 * (1-depth));
-        const t = (vY - bY) / (centerMarkY - bY);
-        const vX = bX + t * (centerMarkX - bX);
+        // ネットから少し手前で動くように調整
+        const vY = cProps.netY + (cProps.height * 0.25 * (1-depth));
+        const t = (vY - bY) / (cProps.cMarkY - bY);
+        const vX = bX + t * (cProps.cMarkX - bX);
+
+        // 影の描写（立体感）
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "black";
 
         // 前衛（黄）
         ctx.fillStyle = "#eccc68";
@@ -192,17 +236,18 @@
         ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
 
         // 打点（赤）
+        ctx.shadowBlur = 0; // 打点は影なしでシャープに
         ctx.fillStyle = "#ff4757";
         ctx.beginPath(); ctx.arc(bX, bY, 16, 0, Math.PI*2); ctx.fill();
         ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
     }
 
-    function varProp(name) { return getComputedStyle(document.documentElement).getPropertyValue(name); }
-
+    // --- イベント処理 ---
     canvas.addEventListener('touchstart', (e) => {
         const rect = canvas.getBoundingClientRect();
         const tx = e.touches[0].clientX - rect.left;
         const ty = e.touches[0].clientY - rect.top;
+        // 打点の近くを触ったらドラッグ開始（判定を少し大きく）
         if(Math.hypot(tx - ballPos.x*canvas.width, ty - ballPos.y*canvas.height) < 40) isDragging = true;
     });
 
@@ -211,14 +256,16 @@
         const rect = canvas.getBoundingClientRect();
         ballPos.x = (e.touches[0].clientX - rect.left) / canvas.width;
         ballPos.y = (e.touches[0].clientY - rect.top) / canvas.height;
-        ballPos.y = Math.max(0.05, Math.min(0.45, ballPos.y));
+        // 相手コート内に制限（シングルスサイドラインを基準に）
+        ballPos.x = Math.max(0.05, Math.min(0.95, ballPos.x));
+        ballPos.y = Math.max(0.05, Math.min(0.48, ballPos.y));
         draw();
     });
 
     window.addEventListener('touchend', () => isDragging = false);
     depthSlider.addEventListener('input', draw);
-    angleSlider.addEventListener('input', (e) => {
-        document.getElementById('angleValue').innerText = e.target.value + '°';
+    spreadSlider.addEventListener('input', (e) => {
+        document.getElementById('spreadValue').innerText = e.target.value + 'x';
         draw();
     });
 
