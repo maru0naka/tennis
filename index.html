@@ -11,6 +11,8 @@
             --bg-dark: #0f172a;
             --panel-bg: #1e293b;
             --player-yellow: #eccc68;
+            --ball-red: #ff4757;
+            --guide-blue: #60a5fa;
         }
 
         body {
@@ -22,7 +24,6 @@
             display: flex; flex-direction: column; height: 100vh;
         }
 
-        /* ヘッダーエリア */
         #header {
             padding: 10px 15px;
             text-align: center;
@@ -33,22 +34,26 @@
         }
         h1 { margin: 0; font-size: 16px; font-weight: bold; margin-bottom: 3px; }
         
-        .sub-comment {
-            font-size: 11px;
-            opacity: 0.8;
-            margin-bottom: 3px;
-        }
+        .sub-comment { font-size: 11px; opacity: 0.8; margin-bottom: 6px; }
         
+        /* 凡例エリアのスタイル */
         .legend {
             font-size: 10px;
-            opacity: 0.7;
             display: flex;
             justify-content: center;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
+            align-items: center;
         }
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        
+        /* 凡例用の図形アイコン */
+        .icon-circle { width: 10px; height: 10px; border-radius: 50%; border: 1px solid white; }
+        .red-ball { background-color: var(--ball-red); }
+        .yellow-player { background-color: var(--player-yellow); }
+        .blue-dash { width: 12px; height: 0; border-top: 2px dashed var(--guide-blue); }
+        .red-tri { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid rgba(255, 71, 87, 0.6); }
 
-        /* コートエリア */
         #canvas-container {
             flex-grow: 1;
             display: flex;
@@ -59,25 +64,19 @@
             overflow: hidden;
         }
 
-        canvas {
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-            border-radius: 4px;
-        }
+        canvas { box-shadow: 0 10px 40px rgba(0,0,0,0.6); border-radius: 4px; }
 
-        /* ネット距離スライダー（右側） */
         .controls-right {
             position: absolute; right: 10px; top: 50%;
             transform: translateY(-50%);
             display: flex; flex-direction: column; align-items: center;
-            pointer-events: auto;
-            z-index: 15;
+            pointer-events: auto; z-index: 15;
         }
         input[type=range].vertical {
             appearance: slider-vertical; width: 12px; height: 160px;
             background: rgba(255,255,255,0.1); border-radius: 10px;
         }
 
-        /* 下部操作パネル */
         #bottom-controls {
             background: var(--panel-bg);
             border-top: 1px solid rgba(255,255,255,0.2);
@@ -85,22 +84,10 @@
             padding: 20px 20px calc(45px + env(safe-area-inset-bottom, 0px)) 20px;
             z-index: 20;
         }
-
-        .slider-wrapper {
-            max-width: 500px; margin: 0 auto;
-        }
-
-        .label-row {
-            display: flex; justify-content: space-between; margin-bottom: 8px;
-        }
+        .label-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .label { font-size: 12px; font-weight: 600; opacity: 0.9; }
         .val { color: var(--player-yellow); font-weight: bold; font-size: 13px; }
-
-        input[type=range] { 
-            width: 100%; height: 10px; border-radius: 5px;
-            accent-color: var(--player-yellow);
-            cursor: pointer;
-        }
+        input[type=range] { width: 100%; height: 10px; border-radius: 5px; accent-color: var(--player-yellow); cursor: pointer; }
     </style>
 </head>
 <body>
@@ -109,16 +96,15 @@
     <h1>前衛ポジション シミュレーション</h1>
     <p class="sub-comment">赤い打点をドラッグして、前衛の立ち位置の変化を確認</p>
     <div class="legend">
-        <span>🔴：打点</span>
-        <span>🟡：前衛立ち位置</span>
-        <span>🔹：センターマーク</span>
-        <span>🔻：打球範囲</span>
+        <div class="legend-item"><div class="icon-circle red-ball"></div><span>打点</span></div>
+        <div class="legend-item"><div class="icon-circle yellow-player"></div><span>前衛</span></div>
+        <div class="legend-item"><div class="blue-dash"></div><span>センターマークへ</span></div>
+        <div class="legend-item"><div class="red-tri"></div><span>打球範囲</span></div>
     </div>
 </div>
 
 <div id="canvas-container">
     <canvas id="mainCanvas"></canvas>
-    
     <div class="controls-right">
         <span class="label" style="writing-mode: vertical-rl; margin-bottom:10px; font-size:10px; opacity:0.6;">ネット距離</span>
         <input type="range" id="depthSlider" class="vertical" min="0" max="1" step="0.01" value="0.7">
@@ -126,13 +112,11 @@
 </div>
 
 <div id="bottom-controls">
-    <div class="slider-wrapper">
-        <div class="label-row">
-            <span class="label">守備範囲（右へ動かすと狭まる）</span>
-            <span id="rangeVal" class="val">標準</span>
-        </div>
-        <input type="range" id="rangeSlider" min="0" max="1" step="0.01" value="0.5">
+    <div class="label-row">
+        <span class="label">守備範囲（右へ動かすと狭まる）</span>
+        <span id="rangeVal" class="val">標準</span>
     </div>
+    <input type="range" id="rangeSlider" min="0" max="1" step="0.01" value="0.5">
 </div>
 
 <script>
@@ -150,61 +134,38 @@
         const container = document.getElementById('canvas-container');
         const availableW = container.clientWidth * 0.92;
         const availableH = container.clientHeight * 0.92;
-        
         let w = availableW;
         let h = w * ratio;
-        
-        if (h > availableH) {
-            h = availableH;
-            w = h / ratio;
-        }
-
-        canvas.width = w;
-        canvas.height = h;
+        if (h > availableH) { h = availableH; w = h / ratio; }
+        canvas.width = w; canvas.height = h;
         calculateCourtProps();
         draw();
     }
 
     function calculateCourtProps() {
-        const w = canvas.width;
-        const h = canvas.height;
-        const padX = w * 0.08;
-        const padY = h * 0.08;
-        const cw = w - (padX * 2);
-        const sPad = cw * 0.13;
-
+        const w = canvas.width; const h = canvas.height;
+        const padX = w * 0.08; const padY = h * 0.08;
+        const cw = w - (padX * 2); const sPad = cw * 0.13;
         cProps = {
-            width: w, height: h,
-            left: padX, right: w - padX,
-            top: padY, bottom: h - padY,
-            netY: h / 2,
-            sLeft: padX + sPad, sRight: w - padX - sPad,
-            cMarkX: w / 2,
-            cMarkY: h - padY * 0.5
+            width: w, height: h, left: padX, right: w - padX, top: padY, bottom: h - padY,
+            netY: h / 2, sLeft: padX + sPad, sRight: w - padX - sPad,
+            cMarkX: w / 2, cMarkY: h - padY * 0.5
         };
     }
 
     function drawCourt() {
         const grad = ctx.createRadialGradient(cProps.width/2, cProps.height/2, 0, cProps.width/2, cProps.height/2, cProps.height);
-        grad.addColorStop(0, '#2d5a3f');
-        grad.addColorStop(1, '#1e3a2f');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, cProps.width, cProps.height);
-
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
-        ctx.lineWidth = 2.5;
+        grad.addColorStop(0, '#2d5a3f'); grad.addColorStop(1, '#1e3a2f');
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, cProps.width, cProps.height);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)"; ctx.lineWidth = 2.5;
         ctx.strokeRect(cProps.left, cProps.top, cProps.right - cProps.left, cProps.bottom - cProps.top);
-        
         ctx.beginPath();
         ctx.moveTo(cProps.sLeft, cProps.top); ctx.lineTo(cProps.sLeft, cProps.bottom);
         ctx.moveTo(cProps.sRight, cProps.top); ctx.lineTo(cProps.sRight, cProps.bottom);
         ctx.stroke();
-
         ctx.beginPath(); ctx.lineWidth = 4;
         ctx.moveTo(0, cProps.netY); ctx.lineTo(cProps.width, cProps.netY); ctx.stroke();
-
-        ctx.lineWidth = 2;
-        ctx.beginPath();
+        ctx.lineWidth = 2; ctx.beginPath();
         ctx.moveTo(cProps.sLeft, cProps.height*0.28); ctx.lineTo(cProps.sRight, cProps.height*0.28);
         ctx.moveTo(cProps.sLeft, cProps.height*0.72); ctx.lineTo(cProps.sRight, cProps.height*0.72);
         ctx.moveTo(cProps.width/2, cProps.height*0.28); ctx.lineTo(cProps.width/2, cProps.height*0.72);
@@ -212,34 +173,26 @@
     }
 
     function draw() {
-        const w = canvas.width;
-        const h = canvas.height;
+        const w = canvas.width; const h = canvas.height;
         ctx.clearRect(0, 0, w, h);
         drawCourt();
-
-        const bX = ballPos.x * w;
-        const bY = ballPos.y * h;
-
+        const bX = ballPos.x * w; const bY = ballPos.y * h;
         const rangeInput = parseFloat(rangeSlider.value);
         const narrowFactor = 1.6 - (rangeInput * 1.2); 
-        
         const halfCourtWidth = cProps.sRight - cProps.cMarkX;
         const targetLeftX = cProps.cMarkX - (halfCourtWidth * narrowFactor);
         const targetRightX = cProps.cMarkX + (halfCourtWidth * narrowFactor);
 
         ctx.fillStyle = "rgba(255, 71, 87, 0.25)";
-        ctx.beginPath();
-        ctx.moveTo(bX, bY);
-        ctx.lineTo(targetLeftX, cProps.bottom);
-        ctx.lineTo(targetRightX, cProps.bottom);
+        ctx.beginPath(); ctx.moveTo(bX, bY);
+        ctx.lineTo(targetLeftX, cProps.bottom); ctx.lineTo(targetRightX, cProps.bottom);
         ctx.fill();
 
-        ctx.setLineDash([8, 8]);
-        ctx.strokeStyle = "rgba(255,255,255,0.4)";
-        ctx.beginPath();
-        ctx.moveTo(bX, bY);
-        ctx.lineTo(cProps.cMarkX, cProps.cMarkY);
-        ctx.stroke();
+        // センターマークへの点線を青に変更
+        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = "#60a5fa"; // 明るい青
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(bX, bY); ctx.lineTo(cProps.cMarkX, cProps.cMarkY); ctx.stroke();
         ctx.setLineDash([]);
 
         const depth = parseFloat(depthSlider.value);
@@ -251,15 +204,12 @@
         ctx.fillStyle = "#eccc68";
         ctx.beginPath(); ctx.arc(vX, vY, 14, 0, Math.PI*2); ctx.fill();
         ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
-
         ctx.shadowBlur = 0;
         ctx.fillStyle = "#ff4757";
         ctx.beginPath(); ctx.arc(bX, bY, 16, 0, Math.PI*2); ctx.fill();
         ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
 
-        ctx.fillStyle = "white";
-        ctx.font = "bold 12px sans-serif";
-        ctx.textAlign = "center";
+        ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
         ctx.fillText("打点をドラッグ", bX, bY + 35);
     }
 
@@ -269,7 +219,6 @@
         const ty = e.touches[0].clientY - rect.top;
         if(Math.hypot(tx - ballPos.x*canvas.width, ty - ballPos.y*canvas.height) < 50) isDragging = true;
     });
-
     window.addEventListener('touchmove', (e) => {
         if(!isDragging) return;
         const rect = canvas.getBoundingClientRect();
@@ -279,19 +228,15 @@
         ballPos.y = Math.max(0.05, Math.min(0.48, ballPos.y));
         draw();
     });
-
     window.addEventListener('touchend', () => isDragging = false);
-    
     rangeSlider.addEventListener('input', (e) => {
         const v = parseFloat(e.target.value);
         let text = "標準";
-        if(v < 0.3) text = "広い";
-        if(v > 0.7) text = "狭い";
+        if(v < 0.3) text = "広い"; if(v > 0.7) text = "狭い";
         document.getElementById('rangeVal').innerText = text;
         draw();
     });
     depthSlider.addEventListener('input', draw);
-
     window.addEventListener('resize', resize);
     window.onload = resize;
 </script>
