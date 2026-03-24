@@ -143,4 +143,136 @@
         draw();
     }
 
-    function calculate
+    function calculateCourtProps() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const padX = w * 0.08;
+        const padY = h * 0.08;
+        const cw = w - (padX * 2);
+        const sPad = cw * 0.13;
+
+        cProps = {
+            width: w, height: h,
+            left: padX, right: w - padX,
+            top: padY, bottom: h - padY,
+            netY: h / 2,
+            sLeft: padX + sPad, sRight: w - padX - sPad,
+            cMarkX: w / 2,
+            cMarkY: h - padY * 0.5
+        };
+    }
+
+    function drawCourt() {
+        const grad = ctx.createRadialGradient(cProps.width/2, cProps.height/2, 0, cProps.width/2, cProps.height/2, cProps.height);
+        grad.addColorStop(0, '#2d5a3f');
+        grad.addColorStop(1, '#1e3a2f');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, cProps.width, cProps.height);
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(cProps.left, cProps.top, cProps.right - cProps.left, cProps.bottom - cProps.top);
+        
+        ctx.beginPath();
+        ctx.moveTo(cProps.sLeft, cProps.top); ctx.lineTo(cProps.sLeft, cProps.bottom);
+        ctx.moveTo(cProps.sRight, cProps.top); ctx.lineTo(cProps.sRight, cProps.bottom);
+        ctx.stroke();
+
+        ctx.beginPath(); ctx.lineWidth = 4;
+        ctx.moveTo(0, cProps.netY); ctx.lineTo(cProps.width, cProps.netY); ctx.stroke();
+
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cProps.sLeft, cProps.height*0.28); ctx.lineTo(cProps.sRight, cProps.height*0.28);
+        ctx.moveTo(cProps.sLeft, cProps.height*0.72); ctx.lineTo(cProps.sRight, cProps.height*0.72);
+        ctx.moveTo(cProps.width/2, cProps.height*0.28); ctx.lineTo(cProps.width/2, cProps.height*0.72);
+        ctx.stroke();
+    }
+
+    function draw() {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        drawCourt();
+
+        const bX = ballPos.x * w;
+        const bY = ballPos.y * h;
+
+        const rangeInput = parseFloat(rangeSlider.value);
+        const narrowFactor = 1.6 - (rangeInput * 1.2); 
+        
+        const halfCourtWidth = cProps.sRight - cProps.cMarkX;
+        const targetLeftX = cProps.cMarkX - (halfCourtWidth * narrowFactor);
+        const targetRightX = cProps.cMarkX + (halfCourtWidth * narrowFactor);
+
+        ctx.fillStyle = "rgba(255, 71, 87, 0.25)";
+        ctx.beginPath();
+        ctx.moveTo(bX, bY);
+        ctx.lineTo(targetLeftX, cProps.bottom);
+        ctx.lineTo(targetRightX, cProps.bottom);
+        ctx.fill();
+
+        ctx.setLineDash([8, 8]);
+        ctx.strokeStyle = "rgba(255,255,255,0.4)";
+        ctx.beginPath();
+        ctx.moveTo(bX, bY);
+        ctx.lineTo(cProps.cMarkX, cProps.cMarkY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const depth = parseFloat(depthSlider.value);
+        const vY = cProps.netY + (cProps.height * 0.25 * (1-depth));
+        const t = (vY - bY) / (cProps.cMarkY - bY);
+        const vX = bX + t * (cProps.cMarkX - bX);
+
+        ctx.shadowBlur = 15; ctx.shadowColor = "black";
+        ctx.fillStyle = "#eccc68";
+        ctx.beginPath(); ctx.arc(vX, vY, 14, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#ff4757";
+        ctx.beginPath(); ctx.arc(bX, bY, 16, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
+
+        ctx.fillStyle = "white";
+        ctx.font = "bold 12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("打点をドラッグ", bX, bY + 35);
+    }
+
+    // イベント
+    canvas.addEventListener('touchstart', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const tx = e.touches[0].clientX - rect.left;
+        const ty = e.touches[0].clientY - rect.top;
+        if(Math.hypot(tx - ballPos.x*canvas.width, ty - ballPos.y*canvas.height) < 50) isDragging = true;
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        if(!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        ballPos.x = (e.touches[0].clientX - rect.left) / canvas.width;
+        ballPos.y = (e.touches[0].clientY - rect.top) / canvas.height;
+        ballPos.x = Math.max(0.05, Math.min(0.95, ballPos.x));
+        ballPos.y = Math.max(0.05, Math.min(0.48, ballPos.y));
+        draw();
+    });
+
+    window.addEventListener('touchend', () => isDragging = false);
+    
+    rangeSlider.addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        let text = "標準";
+        if(v < 0.3) text = "広い";
+        if(v > 0.7) text = "狭い";
+        document.getElementById('rangeVal').innerText = text;
+        draw();
+    });
+    depthSlider.addEventListener('input', draw);
+
+    window.addEventListener('resize', resize);
+    window.onload = resize;
+</script>
+</body>
+</html>
