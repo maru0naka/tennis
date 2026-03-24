@@ -33,10 +33,8 @@
             z-index: 20;
         }
         h1 { margin: 0; font-size: 16px; font-weight: bold; margin-bottom: 3px; }
-        
         .sub-comment { font-size: 11px; opacity: 0.8; margin-bottom: 6px; }
         
-        /* 凡例エリアのスタイル */
         .legend {
             font-size: 10px;
             display: flex;
@@ -47,11 +45,11 @@
         }
         .legend-item { display: flex; align-items: center; gap: 4px; }
         
-        /* 凡例用の図形アイコン */
         .icon-circle { width: 10px; height: 10px; border-radius: 50%; border: 1px solid white; }
         .red-ball { background-color: var(--ball-red); }
         .yellow-player { background-color: var(--player-yellow); }
         .blue-dash { width: 12px; height: 0; border-top: 2px dashed var(--guide-blue); }
+        .yellow-dash { width: 12px; height: 0; border-top: 2px dashed var(--player-yellow); }
         .red-tri { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid rgba(255, 71, 87, 0.6); }
 
         #canvas-container {
@@ -65,6 +63,17 @@
         }
 
         canvas { box-shadow: 0 10px 40px rgba(0,0,0,0.6); border-radius: 4px; }
+
+        /* コート上部の注釈 */
+        .court-label {
+            position: absolute;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.2em;
+            opacity: 0.5;
+            color: white;
+            pointer-events: none;
+        }
 
         .controls-right {
             position: absolute; right: 10px; top: 50%;
@@ -98,13 +107,16 @@
     <div class="legend">
         <div class="legend-item"><div class="icon-circle red-ball"></div><span>打点</span></div>
         <div class="legend-item"><div class="icon-circle yellow-player"></div><span>前衛</span></div>
-        <div class="legend-item"><div class="blue-dash"></div><span>センターマークへ</span></div>
-        <div class="legend-item"><div class="red-tri"></div><span>打球範囲</span></div>
+        <div class="legend-item"><div class="yellow-dash"></div><span>守備基準線</span></div>
+        <div class="legend-item"><div class="blue-dash"></div><span>セオリー</span></div>
     </div>
 </div>
 
 <div id="canvas-container">
+    <div class="court-label" style="top: 15px;">▲ 相手コート (奥) ▲</div>
     <canvas id="mainCanvas"></canvas>
+    <div class="court-label" style="bottom: 15px;">▼ 自分のコート (手前) ▼</div>
+
     <div class="controls-right">
         <span class="label" style="writing-mode: vertical-rl; margin-bottom:10px; font-size:10px; opacity:0.6;">ネット距離</span>
         <input type="range" id="depthSlider" class="vertical" min="0" max="1" step="0.01" value="0.7">
@@ -133,7 +145,7 @@
     function resize() {
         const container = document.getElementById('canvas-container');
         const availableW = container.clientWidth * 0.92;
-        const availableH = container.clientHeight * 0.92;
+        const availableH = container.clientHeight * 0.85; // ラベル分少し余裕を持つ
         let w = availableW;
         let h = w * ratio;
         if (h > availableH) { h = availableH; w = h / ratio; }
@@ -188,10 +200,8 @@
         ctx.lineTo(targetLeftX, cProps.bottom); ctx.lineTo(targetRightX, cProps.bottom);
         ctx.fill();
 
-        // センターマークへの点線を青に変更
         ctx.setLineDash([6, 6]);
-        ctx.strokeStyle = "#60a5fa"; // 明るい青
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#60a5fa"; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(bX, bY); ctx.lineTo(cProps.cMarkX, cProps.cMarkY); ctx.stroke();
         ctx.setLineDash([]);
 
@@ -199,6 +209,16 @@
         const vY = cProps.netY + (cProps.height * 0.25 * (1-depth));
         const t = (vY - bY) / (cProps.cMarkY - bY);
         const vX = bX + t * (cProps.cMarkX - bX);
+
+        // --- 前衛からの平行ガイド線 ---
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = "rgba(236, 204, 104, 0.6)"; // 黄色の半透明
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cProps.left, vY); // コート左端（ダブルスライン）から
+        ctx.lineTo(cProps.right, vY); // コート右端まで
+        ctx.stroke();
+        ctx.setLineDash([]);
 
         ctx.shadowBlur = 15; ctx.shadowColor = "black";
         ctx.fillStyle = "#eccc68";
