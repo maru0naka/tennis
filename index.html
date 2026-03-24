@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>ソフトテニス 前衛ポジション</title>
+    <title>前衛ポジション シミュレーション</title>
     <style>
         :root {
             --bg-dark: #0f172a;
@@ -19,15 +19,26 @@
             margin: 0; padding: 0;
             background-color: var(--bg-dark);
             color: #f8fafc;
-            font-family: -apple-system, sans-serif;
+            font-family: -apple-system, "Helvetica Neue", sans-serif;
             overflow: hidden; touch-action: none;
             display: flex; flex-direction: column; align-items: center;
         }
 
+        /* タイトルエリア */
+        #header {
+            width: 100%;
+            padding: 15px 0;
+            text-align: center;
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(5px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        h1 { margin: 0; font-size: 18px; font-weight: bold; letter-spacing: 0.05em; }
+
         #ui-layer {
             position: absolute; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column;
-            justify-content: space-between; padding: 30px 20px; box-sizing: border-box;
+            justify-content: space-between; padding: 80px 20px 40px 20px; box-sizing: border-box;
             z-index: 10;
         }
 
@@ -41,47 +52,48 @@
         }
 
         .controls-right {
-            position: absolute; right: 10px; top: 40%;
+            position: absolute; right: 10px; top: 45%;
             transform: translateY(-50%); pointer-events: auto;
             display: flex; flex-direction: column; align-items: center;
         }
 
         input[type=range].vertical {
-            appearance: slider-vertical; width: 10px; height: 200px;
+            appearance: slider-vertical; width: 10px; height: 180px;
             background: rgba(255,255,255,0.1); border-radius: 10px;
         }
 
         .bottom-panel {
             width: 90%; background: rgba(30, 41, 59, 0.9);
-            backdrop-filter: blur(10px); padding: 12px;
+            backdrop-filter: blur(10px); padding: 15px;
             border-radius: 16px; pointer-events: auto;
             border: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
-        .slider-group { margin: 8px 0; }
+        .slider-group { margin: 5px 0; }
         input[type=range] { width: 100%; accent-color: var(--player-yellow); }
         .val { color: var(--player-yellow); font-weight: bold; float: right; }
     </style>
 </head>
 <body>
 
+<div id="header">
+    <h1>前衛ポジション シミュレーション</h1>
+</div>
+
 <div id="ui-layer">
-    <div class="label" style="text-align: center;">打点をドラッグ</div>
-    
     <div class="controls-right">
-        <span class="label" style="margin-bottom:5px;">前衛の位置</span>
+        <span class="label" style="margin-bottom:5px;">ネットからの距離</span>
         <input type="range" id="depthSlider" class="vertical" min="0" max="1" step="0.01" value="0.7">
     </div>
 
     <div class="bottom-panel">
         <div class="slider-group">
-            <div class="label">打球範囲 (左) <span id="leftVal" class="val">1.0x</span></div>
-            <input type="range" id="leftSlider" min="0" max="2" step="0.01" value="1.0">
-        </div>
-        <div class="slider-group">
-            <div class="label">打球範囲 (右) <span id="rightVal" class="val">1.0x</span></div>
-            <input type="range" id="rightSlider" min="0" max="2" step="0.01" value="1.0">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span class="label">守備範囲 (右へ動かすと狭まる)</span>
+                <span id="rangeVal" class="val">標準</span>
+            </div>
+            <input type="range" id="rangeSlider" min="0" max="1" step="0.01" value="0.5">
         </div>
     </div>
 </div>
@@ -92,16 +104,15 @@
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     const depthSlider = document.getElementById('depthSlider');
-    const leftSlider = document.getElementById('leftSlider');
-    const rightSlider = document.getElementById('rightSlider');
+    const rangeSlider = document.getElementById('rangeSlider');
 
-    const ratio = 1.6; 
+    const ratio = 1.45; 
     let cProps = {};
-    let ballPos = { x: 0.8, y: 0.15 }; 
+    let ballPos = { x: 0.8, y: 0.18 }; 
     let isDragging = false;
 
     function resize() {
-        const w = window.innerWidth * 0.9;
+        const w = window.innerWidth * 0.88;
         canvas.width = w;
         canvas.height = w * ratio;
         calculateCourtProps();
@@ -112,7 +123,7 @@
         const w = canvas.width;
         const h = canvas.height;
         const padX = w * 0.08;
-        const padY = h * 0.08;
+        const padY = h * 0.1;
         const cw = w - (padX * 2);
         const sPad = cw * 0.13;
 
@@ -150,11 +161,12 @@
 
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(cProps.sLeft, cProps.height*0.28); ctx.lineTo(cProps.sRight, cProps.height*0.28);
-        ctx.moveTo(cProps.sLeft, cProps.height*0.72); ctx.lineTo(cProps.sRight, cProps.height*0.72);
-        ctx.moveTo(cProps.width/2, cProps.height*0.28); ctx.lineTo(cProps.width/2, cProps.height*0.72);
+        ctx.moveTo(cProps.sLeft, hPos(0.28)); ctx.lineTo(cProps.sRight, hPos(0.28));
+        ctx.moveTo(cProps.sLeft, hPos(0.72)); ctx.lineTo(cProps.sRight, hPos(0.72));
+        ctx.moveTo(cProps.width/2, hPos(0.28)); ctx.lineTo(cProps.width/2, hPos(0.72));
         ctx.stroke();
     }
+    function hPos(p) { return cProps.height * p; }
 
     function draw() {
         const w = canvas.width;
@@ -165,17 +177,14 @@
         const bX = ballPos.x * w;
         const bY = ballPos.y * h;
 
-        // --- 左右個別の守備範囲計算 ---
-        const leftFactor = parseFloat(leftSlider.value);
-        const rightFactor = parseFloat(rightSlider.value);
-
-        // 自陣センターからサイドラインまでの幅
+        // --- 守備範囲の計算 ---
+        // スライダーが右(1.0)に行くほど narrowFactor が小さくなり、範囲が狭まる
+        const rangeInput = parseFloat(rangeSlider.value);
+        const narrowFactor = 1.6 - (rangeInput * 1.2); // 1.6(広) 〜 0.4(狭)
+        
         const halfCourtWidth = cProps.sRight - cProps.cMarkX;
-
-        // 各辺のターゲットX座標を計算
-        // 1.0x のとき、ちょうど自陣のサイドラインを指す
-        const targetLeftX = cProps.cMarkX - (halfCourtWidth * leftFactor);
-        const targetRightX = cProps.cMarkX + (halfCourtWidth * rightFactor);
+        const targetLeftX = cProps.cMarkX - (halfCourtWidth * narrowFactor);
+        const targetRightX = cProps.cMarkX + (halfCourtWidth * narrowFactor);
 
         // 描画：守備範囲（扇形）
         ctx.fillStyle = "rgba(255, 71, 87, 0.25)";
@@ -194,30 +203,37 @@
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // 前衛の位置計算
+        // 前衛の位置
         const depth = parseFloat(depthSlider.value);
         const vY = cProps.netY + (cProps.height * 0.25 * (1-depth));
         const t = (vY - bY) / (cProps.cMarkY - bY);
         const vX = bX + t * (cProps.cMarkX - bX);
 
-        // 立体感
+        // 前衛（黄）
         ctx.shadowBlur = 15; ctx.shadowColor = "black";
         ctx.fillStyle = "#eccc68";
         ctx.beginPath(); ctx.arc(vX, vY, 14, 0, Math.PI*2); ctx.fill();
         ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
 
+        // 打点（赤）
         ctx.shadowBlur = 0;
         ctx.fillStyle = "#ff4757";
         ctx.beginPath(); ctx.arc(bX, bY, 16, 0, Math.PI*2); ctx.fill();
         ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.stroke();
+
+        // ガイド文字 "打点をドラッグ"
+        ctx.fillStyle = "white";
+        ctx.font = "bold 12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("打点をドラッグ", bX, bY + 35);
     }
 
-    // イベント
+    // イベント処理
     canvas.addEventListener('touchstart', (e) => {
         const rect = canvas.getBoundingClientRect();
         const tx = e.touches[0].clientX - rect.left;
         const ty = e.touches[0].clientY - rect.top;
-        if(Math.hypot(tx - ballPos.x*canvas.width, ty - ballPos.y*canvas.height) < 40) isDragging = true;
+        if(Math.hypot(tx - ballPos.x*canvas.width, ty - ballPos.y*canvas.height) < 50) isDragging = true;
     });
 
     window.addEventListener('touchmove', (e) => {
@@ -231,11 +247,16 @@
     });
 
     window.addEventListener('touchend', () => isDragging = false);
-    [depthSlider, leftSlider, rightSlider].forEach(s => s.addEventListener('input', (e) => {
-        if(e.target.id === 'leftSlider') document.getElementById('leftVal').innerText = e.target.value + 'x';
-        if(e.target.id === 'rightSlider') document.getElementById('rightVal').innerText = e.target.value + 'x';
+    
+    rangeSlider.addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        let text = "標準";
+        if(v < 0.3) text = "広い";
+        if(v > 0.7) text = "狭い";
+        document.getElementById('rangeVal').innerText = text;
         draw();
-    }));
+    });
+    depthSlider.addEventListener('input', draw);
 
     window.addEventListener('resize', resize);
     window.onload = resize;
