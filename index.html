@@ -22,14 +22,31 @@
             display: flex; flex-direction: column; height: 100vh;
         }
 
+        /* ヘッダーエリア */
         #header {
-            padding: 15px 0;
+            padding: 10px 15px;
             text-align: center;
-            background: rgba(30, 41, 59, 0.8);
+            background: rgba(30, 41, 59, 0.9);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
             flex-shrink: 0;
             z-index: 20;
         }
-        h1 { margin: 0; font-size: 16px; font-weight: bold; }
+        h1 { margin: 0; font-size: 16px; font-weight: bold; margin-bottom: 3px; }
+        
+        .sub-comment {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-bottom: 3px;
+        }
+        
+        .legend {
+            font-size: 10px;
+            opacity: 0.7;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
 
         /* コートエリア */
         #canvas-container {
@@ -56,17 +73,16 @@
             z-index: 15;
         }
         input[type=range].vertical {
-            appearance: slider-vertical; width: 12px; height: 180px;
+            appearance: slider-vertical; width: 12px; height: 160px;
             background: rgba(255,255,255,0.1); border-radius: 10px;
         }
 
-        /* 下部操作パネル：ここで余白を制御 */
+        /* 下部操作パネル */
         #bottom-controls {
             background: var(--panel-bg);
             border-top: 1px solid rgba(255,255,255,0.2);
             flex-shrink: 0;
-            /* 50pxの余白 + iPhoneのセーフエリアを確保 */
-            padding: 25px 20px calc(50px + env(safe-area-inset-bottom, 0px)) 20px;
+            padding: 20px 20px calc(45px + env(safe-area-inset-bottom, 0px)) 20px;
             z-index: 20;
         }
 
@@ -75,13 +91,13 @@
         }
 
         .label-row {
-            display: flex; justify-content: space-between; margin-bottom: 12px;
+            display: flex; justify-content: space-between; margin-bottom: 8px;
         }
-        .label { font-size: 13px; font-weight: 600; opacity: 0.9; }
-        .val { color: var(--player-yellow); font-weight: bold; font-size: 14px; }
+        .label { font-size: 12px; font-weight: 600; opacity: 0.9; }
+        .val { color: var(--player-yellow); font-weight: bold; font-size: 13px; }
 
         input[type=range] { 
-            width: 100%; height: 12px; border-radius: 6px;
+            width: 100%; height: 10px; border-radius: 5px;
             accent-color: var(--player-yellow);
             cursor: pointer;
         }
@@ -91,13 +107,20 @@
 
 <div id="header">
     <h1>前衛ポジション シミュレーション</h1>
+    <p class="sub-comment">赤い打点をドラッグして、前衛の立ち位置の変化を確認</p>
+    <div class="legend">
+        <span>🔴：打点</span>
+        <span>🟡：前衛立ち位置</span>
+        <span>🔹：センターマーク</span>
+        <span>🔻：打球範囲</span>
+    </div>
 </div>
 
 <div id="canvas-container">
     <canvas id="mainCanvas"></canvas>
     
     <div class="controls-right">
-        <span class="label" style="writing-mode: vertical-rl; margin-bottom:10px; font-size:11px;">ネット距離</span>
+        <span class="label" style="writing-mode: vertical-rl; margin-bottom:10px; font-size:10px; opacity:0.6;">ネット距離</span>
         <input type="range" id="depthSlider" class="vertical" min="0" max="1" step="0.01" value="0.7">
     </div>
 </div>
@@ -125,7 +148,6 @@
 
     function resize() {
         const container = document.getElementById('canvas-container');
-        // コンテナの90%程度のサイズで描画
         const availableW = container.clientWidth * 0.92;
         const availableH = container.clientHeight * 0.92;
         
@@ -241,7 +263,6 @@
         ctx.fillText("打点をドラッグ", bX, bY + 35);
     }
 
-    // イベント
     canvas.addEventListener('touchstart', (e) => {
         const rect = canvas.getBoundingClientRect();
         const tx = e.touches[0].clientX - rect.left;
